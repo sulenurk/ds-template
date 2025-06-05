@@ -4,7 +4,7 @@ from sklearn.metrics import classification_report
 import utils.model_utils as mu
 import utils.shap_py as sp
 import joblib
-from typing import Dict
+from typing import Dict, List, Optional
 
 # === 1. LEARN ===
 def learn_model(df, target_col, params=None, search=True, cv=5, scoring='recall', random_state=42):
@@ -36,17 +36,34 @@ def learn_model(df, target_col, params=None, search=True, cv=5, scoring='recall'
     }
 
 # === 2. APPLY ===
-def apply_model(df, target_col, model_info: Dict) -> pd.DataFrame:
+def apply_model(df, model_info: Dict, columns: Optional[List[str]] = None) -> pd.DataFrame:
     """Apply Gradient Boosting model to data and return predictions + probabilities"""
     model = model_info['model']
-    X = df.drop(columns=[target_col, 'dataset'])
     
-    predictions = model.predict(X)
-    probabilities = model.predict_proba(X)[:, 1]
+    # Drop specified columns temporarily
+    if columns:
+        dropped_df = df[columns].copy()
+        df_model_input = df.drop(columns=columns)
+    else:
+        dropped_df = None
+        df_model_input = df
 
-    results = df.copy()
+    if "predictions" in df.columns:
+        df_model_input.drop("predictions", axis=1, inplace=True)
+
+    if "probabilities" in df.columns:
+        df_model_input.drop("probabilities", axis=1, inplace=True)
+    
+    predictions = model.predict(df_model_input)
+    probabilities = model.predict_proba(df_model_input)[:, 1]
+
+    results = df_model_input.copy()
     results['predictions'] = predictions
     results['probabilities'] = probabilities
+
+    # Reinsert dropped columns
+    if dropped_df is not None:
+        results = pd.concat([results, dropped_df], axis=1)
 
     return results
 
