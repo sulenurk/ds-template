@@ -1,0 +1,6 @@
+*.csv
+*.pptx
+*.joblib
+.vscode
+.pyc
+__pycache__
