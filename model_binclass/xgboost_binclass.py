@@ -73,9 +73,9 @@ def evaluate_model(df: pd.DataFrame, target_col: str):
 # === 4. EXPLAIN ===
 def explain_model(model, df, top_n_features=10, sample_index=None, index_feature=False, save_path=None):
     """Explain XGBoost model with SHAP (tree-based explanation)"""
-
     X_train = df[df.dataset == 1].drop(columns=["dataset"]) 
     X_test = df[df.dataset == 0].drop(columns=["dataset"]) 
+    #Comments take place here
 
     shap_vals = sp.shap_values(model, df, model_type='tree')
 
