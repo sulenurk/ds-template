@@ -33,7 +33,7 @@ def learn_encoder(df, min_frequency=5):
     encoder = OneHotEncoder(
         drop='first',
         sparse_output=False,
-        handle_unknown='infrequent_if_exist',
+        handle_unknown='ignore',
         min_frequency=min_frequency
     )
     
@@ -66,7 +66,7 @@ def learn_encoder(df, min_frequency=5):
 
     return encoder_info
 
-def apply_encoder(df, encoder_info):
+def apply_encoder(df, encoder_info, columns_to_drop=None):
     """
     Applies the previously learned encoder to a new DataFrame.
     New categories not seen during training are encoded as 'others' if they meet the frequency threshold.
@@ -84,6 +84,14 @@ def apply_encoder(df, encoder_info):
     # If no encoder was learned (no categorical columns), return the original DataFrame
     if encoder_info is None:
         return df.copy()
+    
+        # Drop specified columns
+    if columns_to_drop:
+        dropped_df = df[columns_to_drop].copy()
+        df_input = df.drop(columns=columns_to_drop)
+    else:
+        dropped_df = None
+        df_input = df
 
     # Unpack encoder information
     ct = encoder_info['encoder']
@@ -93,7 +101,7 @@ def apply_encoder(df, encoder_info):
     infrequent_categories = encoder_info['infrequent_categories']
 
     # Apply the transformation to the new data
-    encoded_array = ct.transform(df)
+    encoded_array = ct.transform(df_input)
 
     # Extract the OneHotEncoder used in the transformer
     onehot_encoder = ct.named_transformers_['cat']
@@ -112,7 +120,7 @@ def apply_encoder(df, encoder_info):
     encoded_df = pd.DataFrame(
         encoded_array,
         columns=new_feature_names,
-        index=df.index
+        index=df_input.index
     )
 
     # Process each categorical column to ensure '_others' column is correctly handled
@@ -148,6 +156,10 @@ def apply_encoder(df, encoder_info):
                 encoded_df[others_col] |= df[col].isin(valid_unseen).astype(int)
 
     encoded_df = clean_column_names_remainder(encoded_df)
+
+    # Reattach dropped columns if any
+    if dropped_df is not None:
+        encoded_df = pd.concat([encoded_df, dropped_df], axis=1)
 
     return encoded_df
 

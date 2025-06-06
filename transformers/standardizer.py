@@ -1,3 +1,4 @@
+import pandas as pd
 import numpy as np
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, FunctionTransformer, MinMaxScaler
@@ -62,7 +63,7 @@ def learn_standardizer(df):
 
     return stand_info
 
-def apply_standardizer(df, stand_info):
+def apply_standardizer(df, stand_info, columns_to_drop=None):
     """
     Apply the learned scaling transformations to new data.
 
@@ -78,13 +79,23 @@ def apply_standardizer(df, stand_info):
     pd.DataFrame
         Transformed data with scaled columns
     """
-    df_scaled = df.copy()
+    # Drop specified columns
+    if columns_to_drop:
+        dropped_df = df[columns_to_drop].copy()
+        df_scaled = df.drop(columns=columns_to_drop).copy()
+    else:
+        dropped_df = None
+        df_scaled = df.copy()
 
     for col, scaler in stand_info['scalers'].items():
         if col in df.columns:
             # Apply the appropriate transformation
             # Handle FunctionTransformer separately if needed
             df_scaled[col] = scaler.transform(df[[col]]).flatten()
+
+    # Reattach dropped columns if any
+    if dropped_df is not None:
+        df_scaled = pd.concat([df_scaled, dropped_df], axis=1)
 
     return df_scaled
 
