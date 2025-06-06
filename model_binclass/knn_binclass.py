@@ -35,7 +35,7 @@ def learn_model(df, target_col, params=None, search=True, cv=5, scoring='recall'
     }
 
 # === 2. APPLY ===
-def apply_model(df, target_col, model_info: Dict, columns: Optional[List[str]] = None) -> pd.DataFrame:
+def apply_model(df, model_info: Dict, columns: Optional[List[str]] = None) -> pd.DataFrame:
     """Apply KNN model to data and return predictions + probabilities (if available)"""
     model = model_info['model']
 
