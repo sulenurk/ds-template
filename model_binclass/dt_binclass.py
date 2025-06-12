@@ -81,10 +81,13 @@ def evaluate_model(df: pd.DataFrame, target_col: str):
     mu.plot_confusion_matrix(y_true, y_pred)
 
 # === 4. EXPLAIN ===
-def explain_model(model_info, df, top_n_features=10, sample_index=None, index_feature=False, save_path=None):
+def explain_model(model, df, top_n_features=10, sample_index=None, index_feature=False, save_path=None):
     """Use SHAP to explain a decision tree model"""
 
-    shap_vals = sp.shap_values(model_info, df)
+    df = df[df.dataset == 0].drop(columns=["dataset"]) 
+    #Comments take place here
+
+    shap_vals = sp.shap_values(model, df)
 
     sp.global_analysis(shap_vals, df, top_n_features=top_n_features, save_path=save_path)
 
@@ -93,6 +96,8 @@ def explain_model(model_info, df, top_n_features=10, sample_index=None, index_fe
 
     if index_feature:
         sp.index_feature(shap_vals, df, save_path=save_path)
+
+    return shap_vals
 
 
 # === 5. SAVE ===
