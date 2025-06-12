@@ -33,38 +33,40 @@ import os
         Model type to select appropriate SHAP explainer ('tree' or 'other').
 """
 
-def shap_values(model_info, df, model_type='tree'):
+def shap_values(model_info, df):
 
   model = model_info['model']
 
   # Choose appropriate SHAP explainer
-  if model_type == 'tree':
-    explainer = shap.TreeExplainer(model)
-  else:
-    explainer = shap.Explainer(model, df)
+  explainer = shap.Explainer(model, feature_names=df.columns)
+
+  shap_values = explainer(df)
+
+  shap_values_df = pd.DataFrame(shap_values.values, columns=df.columns)
 
   # Compute SHAP values
-  return explainer(df)
+  return shap_values_df
 
-def global_analysis(shap_values, X_test, top_n_features=10, save_path=None):
+
+def global_analysis(shap_values, df, top_n_features=10, save_path=None):
 
   # Plot: Feature Importance (Bar Summary)
-  shap.summary_plot(shap_values, X_test, plot_type="bar", max_display=top_n_features, show=False)
+  shap.summary_plot(shap_values, df, plot_type="bar", max_display=top_n_features, show=False)
   plt.title("Feature Importance (SHAP)")
   if save_path:
       plt.savefig(f"{save_path}/shap_summary_bar.png", bbox_inches='tight', dpi=300)
   plt.show()
 
   # Plot: SHAP Value Distribution (Dot Summary)
-  shap.summary_plot(shap_values, X_test, max_display=top_n_features, show=False)
+  """ shap.summary_plot(shap_values, df, max_display=top_n_features, show=False)
   plt.title("SHAP Value Distribution")
   if save_path:
       plt.savefig(f"{save_path}/shap_summary_dot.png", bbox_inches='tight', dpi=300)
-  plt.show()
+  plt.show() """
 
   # Plot: SHAP Heatmap (for small datasets only)
   try:
-      if X_test.shape[0] <= 100:  # avoid overload on large data
+      if df.shape[0] <= 100:  # avoid overload on large data
           shap.plots.heatmap(shap_values, show=False)
           plt.title("SHAP Heatmap")
           if save_path:
@@ -91,7 +93,7 @@ def index_charts(shap_values, sample_index, top_n_features=10, save_path=None):
   except Exception as e:
       print(f"Decision plot could not be generated: {e}")
 
-def index_feature(shap_values, X_test, save_path=None):
+def index_feature(shap_values, df, save_path=None):
 
   # Create directory if save_path is given
   if save_path:
@@ -101,7 +103,7 @@ def index_feature(shap_values, X_test, save_path=None):
   try:
       shap_values_abs = np.abs(shap_values.values).mean(axis=0)
       top_feature_idx = np.argsort(shap_values_abs)[-1]
-      top_feature_name = X_test.columns[top_feature_idx]
+      top_feature_name = df.columns[top_feature_idx]
       shap.plots.scatter(shap_values[:, top_feature_idx], show=False)
       plt.title(f"Dependence Plot - {top_feature_name}")
       if save_path:

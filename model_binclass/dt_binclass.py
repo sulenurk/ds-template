@@ -84,18 +84,15 @@ def evaluate_model(df: pd.DataFrame, target_col: str):
 def explain_model(model_info, df, top_n_features=10, sample_index=None, index_feature=False, save_path=None):
     """Use SHAP to explain a decision tree model"""
 
-    X_train = df[df.dataset == 1].drop(columns=["dataset"])
-    X_test = df[df.dataset == 0].drop(columns=["dataset"])
+    shap_vals = sp.shap_values(model_info, df)
 
-    shap_vals = sp.shap_values(model_info, X_train, X_test, model_type='tree')
-
-    sp.global_analysis(shap_vals, X_test, top_n_features=top_n_features, save_path=save_path)
+    sp.global_analysis(shap_vals, df, top_n_features=top_n_features, save_path=save_path)
 
     if sample_index is not None:
         sp.index_charts(shap_vals, sample_index=sample_index, top_n_features=top_n_features, save_path=save_path)
 
     if index_feature:
-        sp.index_feature(shap_vals, X_test, save_path=save_path)
+        sp.index_feature(shap_vals, df, save_path=save_path)
 
 
 # === 5. SAVE ===

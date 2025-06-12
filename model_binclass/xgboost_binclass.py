@@ -93,19 +93,20 @@ def evaluate_model(df: pd.DataFrame, target_col: str):
 # === 4. EXPLAIN ===
 def explain_model(model, df, top_n_features=10, sample_index=None, index_feature=False, save_path=None):
     """Explain XGBoost model with SHAP (tree-based explanation)"""
-    X_train = df[df.dataset == 1].drop(columns=["dataset"]) 
-    X_test = df[df.dataset == 0].drop(columns=["dataset"]) 
+    df = df[df.dataset == 0].drop(columns=["dataset"]) 
     #Comments take place here
 
-    shap_vals = sp.shap_values(model, df, model_type='tree')
+    shap_vals = sp.shap_values(model, df)
 
-    sp.global_analysis(shap_vals, X_test, top_n_features=top_n_features, save_path=save_path)
+    sp.global_analysis(shap_vals, df, top_n_features=top_n_features, save_path=save_path)
 
     if sample_index is not None:
         sp.index_charts(shap_vals, sample_index=sample_index, top_n_features=top_n_features, save_path=save_path)
 
     if index_feature:
-        sp.index_feature(shap_vals, X_test, save_path=save_path)
+        sp.index_feature(shap_vals, df, save_path=save_path)
+
+    return shap_vals
 
 # === 5. SAVE ===
 def save_model(model_info: Dict, filepath: str):
