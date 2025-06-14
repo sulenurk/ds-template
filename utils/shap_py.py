@@ -47,33 +47,85 @@ def shap_values(model_info, df):
   # Compute SHAP values
   return shap_values_df
 
+#helper functions
+def _encode_categoricals(df):
+    """object/category → label-encode; diğer sütunlar dokunulmaz."""
+    df_enc = df.copy()
+    for col in df_enc.select_dtypes(include=["object", "category"]).columns:
+        df_enc[col], _ = pd.factorize(df_enc[col])
+    return df_enc
 
-def global_analysis(shap_values, df, top_n_features=10, save_path=None):
+def _to_numpy_shap(vals):
+    """
+    SHAP çıktısını NumPy'ye dönüştür:
+    - Tek DataFrame  -> ndarray
+    - Liste içindeki DataFrame'ler -> ndarray listesi
+    - Zaten ndarray/list(ndarray) ise dokunma
+    """
+    if isinstance(vals, pd.DataFrame):
+        return vals.values
+    if isinstance(vals, list):
+        return [_to_numpy_shap(v) for v in vals]
+    return vals
 
-  # Plot: Feature Importance (Bar Summary)
-  shap.summary_plot(shap_values, df, plot_type="bar", max_display=top_n_features, show=False)
-  plt.title("Feature Importance (SHAP)")
-  if save_path:
-      plt.savefig(f"{save_path}/shap_summary_bar.png", bbox_inches='tight', dpi=300)
-  plt.show()
 
-  # Plot: SHAP Value Distribution (Dot Summary)
-  """ shap.summary_plot(shap_values, df, max_display=top_n_features, show=False)
-  plt.title("SHAP Value Distribution")
-  if save_path:
-      plt.savefig(f"{save_path}/shap_summary_dot.png", bbox_inches='tight', dpi=300)
-  plt.show() """
+def global_analysis(
+        shap_values,
+        df,                      # df[features]
+        top_n_features=10,
+        save_path=None,
+        encode_categoricals=True,
+    ):
+    """
+    Bar ve Dot SHAP özet grafikleri çizer.
+    - shap_values : explainer.shap_values(df) çıktısı (DataFrame, ndarray veya liste)
+    - df          : Model girdisi (train+test birleşimi)
+    """
 
-  # Plot: SHAP Heatmap (for small datasets only)
-  try:
-      if df.shape[0] <= 100:  # avoid overload on large data
-          shap.plots.heatmap(shap_values, show=False)
-          plt.title("SHAP Heatmap")
-          if save_path:
-              plt.savefig(f"{save_path}/shap_heatmap.png", bbox_inches='tight', dpi=300)
-          plt.show()
-  except Exception as e:
-      print(f"Heatmap plot could not be generated: {e}")
+    df_plot = _encode_categoricals(df) if encode_categoricals else df
+    X_np = df_plot.values
+    feature_names = df_plot.columns.tolist()
+    shap_np = _to_numpy_shap(shap_values) 
+
+    # --- Bar Summary -------------------------------------------------------- #
+    shap.summary_plot(
+        shap_np,
+        features=X_np,
+        feature_names=feature_names,
+        plot_type="bar",
+        max_display=top_n_features,
+        show=False,
+    )
+    plt.title("Feature Importance (SHAP)")
+    if save_path:
+        plt.savefig(f"{save_path}/shap_summary_bar.png",
+                    bbox_inches="tight", dpi=300)
+    plt.show()
+
+    # --- Dot Summary -------------------------------------------------------- #
+    shap.summary_plot(
+        shap_np,
+        features=X_np,
+        feature_names=feature_names,
+        max_display=top_n_features,
+        show=False,
+    )
+    plt.title("SHAP Value Distribution")
+    if save_path:
+        plt.savefig(f"{save_path}/shap_summary_dot.png",
+                    bbox_inches="tight", dpi=300)
+    plt.show()
+
+    # Plot: SHAP Heatmap (for small datasets only)
+    try:
+        if df.shape[0] <= 100:  # avoid overload on large data
+            shap.plots.heatmap(shap_values, show=False)
+            plt.title("SHAP Heatmap")
+            if save_path:
+                plt.savefig(f"{save_path}/shap_heatmap.png", bbox_inches='tight', dpi=300)
+            plt.show()
+    except Exception as e:
+        print(f"Heatmap plot could not be generated: {e}")
 
 def index_charts(shap_values, sample_index, top_n_features=10, save_path=None):
   # Plot 3: Waterfall Plot for Specific Prediction
