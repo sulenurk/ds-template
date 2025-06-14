@@ -82,33 +82,3 @@ def evaluate_model(df: pd.DataFrame, target_col: str):
     mu.plot_probability_metrics(y_true, pred_proba)
     mu.plot_lift_curve(y_true, pred_proba)
     mu.plot_cumulative_gains(y_true, pred_proba)
-
-# === 4. EXPLAIN ===
-def explain_model(model, df, top_n_features=10, sample_index=None, index_feature=False, save_path=None):
-    df = df[df.dataset == 0].drop(columns=["dataset"]) 
-    #Comments take place here
-
-    shap_vals = sp.shap_values(model, df)
-
-    sp.global_analysis(shap_vals, df, top_n_features=top_n_features, save_path=save_path)
-
-    if sample_index is not None:
-        sp.index_charts(shap_vals, sample_index=sample_index, top_n_features=top_n_features, save_path=save_path)
-
-    if index_feature:
-        sp.index_feature(shap_vals, df, save_path=save_path)
-
-    return shap_vals
-
-# === 5. SAVE ===
-def save_model(model_info: Dict, filepath: str):
-    """Save trained model and metadata"""
-    joblib.dump(model_info, filepath)
-    print(f"Model saved to {filepath}")
-
-# === 6. LOAD ===
-def load_model(filepath: str) -> Dict:
-    """Load model and metadata from file"""
-    model_info = joblib.load(filepath)
-    print(f"Model loaded from {filepath}")
-    return model_info
