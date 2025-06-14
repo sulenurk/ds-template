@@ -13,27 +13,29 @@ import pandas as pd
 import numpy as np
 import os
 
-"""    Generate SHAP explanations and plots for model predictions.
-
-    Parameters:
-    -----------
-    model : trained model
-        The machine learning model to explain.
-    X_train_transformed : DataFrame
-        Transformed training data used as background for the explainer.
-    X_test_transformed : DataFrame
-        Transformed test data to explain.
-    sample_index : int
-        Index of the test sample to explain in detail.
-    top_n_features : int
-        Number of top features to display in summary and waterfall plots.
-    save_path : str or None
-        Directory to save the plots. If None, plots are not saved.
-    model_type : str
-        Model type to select appropriate SHAP explainer ('tree' or 'other').
-"""
-
 def shap_values(model_info, df):
+  """
+    Compute SHAP values for all observations in *df*.
+
+    Parameters
+    ----------
+    model_info : dict
+        Dictionary whose key ``'model'`` maps to a fitted estimator compatible
+        with `shap.Explainer`.
+    df : pd.DataFrame
+        Feature matrix (no target column).
+
+    Returns
+    -------
+    pd.DataFrame
+        SHAP value matrix with the same column order as *df*.
+
+    Notes
+    -----
+    - A model-agnostic `shap.Explainer` is instantiated internally.
+    - For heavy tree models consider passing a specialised explainer to speed up
+      computation.
+    """
 
   model = model_info['model']
 
@@ -49,7 +51,24 @@ def shap_values(model_info, df):
 
 #helper functions
 def _encode_categoricals(df):
-    """object/category → label-encode; diğer sütunlar dokunulmaz."""
+    """
+    Label-encode all object/category columns.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Original feature matrix.
+
+    Returns
+    -------
+    pd.DataFrame
+        Copy of *df* where categorical columns are replaced by integer codes.
+
+    Notes
+    -----
+    - Non-categorical columns are left unchanged.
+    - Intended for internal use prior to SHAP plotting.
+    """
     df_enc = df.copy()
     for col in df_enc.select_dtypes(include=["object", "category"]).columns:
         df_enc[col], _ = pd.factorize(df_enc[col])
@@ -57,10 +76,17 @@ def _encode_categoricals(df):
 
 def _to_numpy_shap(vals):
     """
-    SHAP çıktısını NumPy'ye dönüştür:
-    - Tek DataFrame  -> ndarray
-    - Liste içindeki DataFrame'ler -> ndarray listesi
-    - Zaten ndarray/list(ndarray) ise dokunma
+    Convert SHAP values to NumPy format for plotting.
+
+    Parameters
+    ----------
+    vals : pd.DataFrame | np.ndarray | list
+        SHAP output (single array/DataFrame or list per class).
+
+    Returns
+    -------
+    np.ndarray | list[np.ndarray]
+        NumPy array (or list of arrays) ready for `shap.summary_plot`.
     """
     if isinstance(vals, pd.DataFrame):
         return vals.values
@@ -77,11 +103,33 @@ def global_analysis(
         encode_categoricals=True,
     ):
     """
-    Bar ve Dot SHAP özet grafikleri çizer.
-    - shap_values : explainer.shap_values(df) çıktısı (DataFrame, ndarray veya liste)
-    - df          : Model girdisi (train+test birleşimi)
-    """
+    Generate global SHAP visualisations: bar, dot and (for small data) heatmap.
 
+    Parameters
+    ----------
+    shap_values : pd.DataFrame | np.ndarray | list
+        SHAP values computed for *df*.
+    df : pd.DataFrame
+        Feature matrix (train+test merge). Target column must be absent.
+    top_n_features : int, default=10
+        Maximum number of features to display in summary plots.
+    save_path : str, optional
+        Directory path for saving PNG images. If ``None``, figures are
+        displayed but not saved.
+    encode_categoricals : bool, default=True
+        If ``True``, categorical columns are label-encoded for dot plots.
+
+    Returns
+    -------
+    None
+        Displays and optionally saves SHAP bar, dot, and heatmap plots.
+
+    Notes
+    -----
+    - Heatmap is attempted only when the dataset has ≤100 rows.
+    - Any exceptions during plotting are caught and printed, preventing the
+      analysis pipeline from crashing.
+    """
     df_plot = _encode_categoricals(df) if encode_categoricals else df
     X_np = df_plot.values
     feature_names = df_plot.columns.tolist()
@@ -128,7 +176,25 @@ def global_analysis(
         print(f"Heatmap plot could not be generated: {e}")
 
 def index_charts(shap_values, sample_index, top_n_features=10, save_path=None):
-  # Plot 3: Waterfall Plot for Specific Prediction
+  """
+    Plot per-instance waterfall and decision charts.
+
+    Parameters
+    ----------
+    shap_values : shap.Explanation | list
+        SHAP explanation object returned by the explainer.
+    sample_index : int
+        Row index of the observation to visualise.
+    top_n_features : int, default=10
+        Maximum number of features in the waterfall plot.
+    save_path : str, optional
+        Directory path for saving PNG images. If ``None``, figures are not saved.
+
+    Returns
+    -------
+    None
+        Displays (and optionally saves) the waterfall and decision plots.
+    """
   shap.plots.waterfall(shap_values[sample_index], max_display=top_n_features, show=False)
   plt.title(f"Waterfall Plot - Sample {sample_index}")
   if save_path:
@@ -146,6 +212,28 @@ def index_charts(shap_values, sample_index, top_n_features=10, save_path=None):
       print(f"Decision plot could not be generated: {e}")
 
 def index_feature(shap_values, df, save_path=None):
+  """
+    Plot a dependence scatter for the single most impactful feature.
+
+    Parameters
+    ----------
+    shap_values : shap.Explanation
+        SHAP explanation object for the dataset *df*.
+    df : pd.DataFrame
+        Feature matrix corresponding to *shap_values*.
+    save_path : str, optional
+        Directory path where the plot will be saved. Created if absent.
+
+    Returns
+    -------
+    None
+        Displays (and optionally saves) the dependence plot.
+
+    Notes
+    -----
+    - The top feature is selected by mean absolute SHAP value.
+    - Errors encountered during plotting are caught and logged.
+    """
 
   # Create directory if save_path is given
   if save_path:

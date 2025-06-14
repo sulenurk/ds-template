@@ -8,7 +8,42 @@ from typing import Dict, List, Optional
 
 # === 1. LEARN ===
 def learn_model(df, target_col, params=None, search=True, cv=5, scoring='recall', random_state=42):
-    """Train LightGBM with optional hyperparameter tuning"""
+    """
+    Train a LightGBM classifier with optional hyper-parameter tuning.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input dataset containing feature columns, the target column,
+        and a 'dataset' indicator column (excluded from training).
+    target_col : str
+        Name of the target column to predict.
+    params : dict, optional
+        Hyper-parameters to evaluate or set.  
+        If None, a predefined grid is used for tuning.
+    search : bool, default=True
+        If True and `params` is provided, runs grid search over `params`;
+        if False, fits directly with the supplied `params`.
+    cv : int, default=5
+        Number of cross-validation folds used during grid search.
+    scoring : str, default='recall'
+        Score metric for model selection in grid search.
+    random_state : int, default=42
+        Seed passed to `LGBMClassifier` for reproducibility.
+
+    Returns
+    -------
+    dict
+        {
+            'model'        : fitted `LGBMClassifier`,
+            'model_params' : best or fixed parameter set as a dict
+        }
+
+    Notes
+    -----
+    - Column 'dataset' is always dropped before training.
+    - Grid search is performed via `mu.grid_search`.
+    """
     model = LGBMClassifier(random_state=random_state)
 
     X = df.drop(columns=[target_col, 'dataset'])
@@ -38,7 +73,34 @@ def learn_model(df, target_col, params=None, search=True, cv=5, scoring='recall'
 
 # === 2. APPLY ===
 def apply_model(df, model_info: Dict, columns: Optional[List[str]] = None) -> pd.DataFrame:
-    """Apply LightGBM model to data and return predictions + probabilities"""
+    """
+    Apply a trained LightGBM model to a DataFrame and append predictions.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Data on which predictions are required.
+    model_info : dict
+        Dictionary with key 'model' mapping to a fitted `LGBMClassifier`.
+    columns : list[str], optional
+        Column names to exclude during prediction (e.g., IDs).
+        They are re-attached to the returned DataFrame unchanged.
+
+    Returns
+    -------
+    pd.DataFrame
+        Copy of the input (excluding any temporarily dropped columns during
+        inference) with two new columns:  
+        - 'predictions'   : predicted class labels  
+        - 'probabilities' : probability of the positive class (index 1)
+
+    Notes
+    -----
+    - Existing 'predictions' or 'probabilities' columns in `df` are removed
+      before new values are added.
+    - Positive-class probability is extracted as
+      `model.predict_proba(... )[:, 1]`.
+    """
     model = model_info['model']
 
     # Drop specified columns temporarily
@@ -72,7 +134,39 @@ def apply_model(df, model_info: Dict, columns: Optional[List[str]] = None) -> pd
 
 # === 3. EVALUATE ===
 def evaluate_model(df: pd.DataFrame, target_col: str):
-    """Evaluate classification predictions with metrics and probability plots"""
+    """
+    Evaluate classification results and display diagnostic plots.
+
+    Prints a classification report, shows a confusion matrix, and — if class
+    probabilities are present — plots additional probability-based diagnostics
+    (ROC-like metrics, lift, cumulative gains).
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing:
+        - true labels in `target_col`
+        - a 'predictions' column (required)
+        - a 'probabilities' column (optional) for probability-based plots
+    target_col : str
+        Name of the column holding true class labels.
+
+    Returns
+    -------
+    None
+        Outputs are printed to stdout and plots are displayed.
+
+    Raises
+    ------
+    KeyError
+        If 'predictions' column is missing from `df`.
+
+    Notes
+    -----
+    - Utility plotting functions (`mu.plot_confusion_matrix`, etc.) must be
+      available in the current namespace.
+    - Probability-based plots are skipped if 'probabilities' is absent.
+    """
     y_true = df[target_col]
     y_pred = df['predictions']
     pred_proba = df['probabilities']

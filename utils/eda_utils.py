@@ -47,6 +47,30 @@ def split_feature_cols(df, id_cols, target_col=None, normalize=False):
 
 # Draw histograms for numeric columns with optional grouping and density option
 def draw_histograms(dataframe, feature_columns, hue=None, bins=50, dimension=(6, 4), density=False):
+    """
+    Plot histograms for one or more numeric features.
+
+    Parameters
+    ----------
+    dataframe : pd.DataFrame
+        Source data.
+    feature_columns : list[str]
+        Numeric column names to be visualized.
+    hue : str, optional
+        Categorical column used to color and split the histogram bars.
+    bins : int, default=50
+        Number of histogram bins.
+    dimension : tuple[int, int], default=(6, 4)
+        Figure size in inches *(width, height)*.
+    density : bool, default=False
+        If ``True``, the histogram is normalized to show probability density;
+        otherwise, raw counts are displayed.
+
+    Returns
+    -------
+    None
+        Displays one histogram per feature column.
+    """
     for col in feature_columns:
         plt.figure(figsize=dimension)
         if hue:
@@ -63,6 +87,22 @@ def draw_histograms(dataframe, feature_columns, hue=None, bins=50, dimension=(6,
 
 # Draw boxplots for numeric columns
 def draw_boxplots(dataframe, numeric_cols):
+    """
+    Plot a separate boxplot for each numeric feature.
+
+    Parameters
+    ----------
+    dataframe : pd.DataFrame
+        Source data.
+    numeric_cols : list[str]
+        Column names to be plotted.
+
+    Returns
+    -------
+    None
+        Displays a boxplot for every column in *numeric_cols*.
+    """
+
     color = '#1f4591'
     for col in numeric_cols:
         plt.figure(figsize=(4, 4))
@@ -73,11 +113,41 @@ def draw_boxplots(dataframe, numeric_cols):
 
 # Draw a pairplot for numeric columns colored by target
 def draw_pairplot(df, target_col):
+    """
+    Generate a Seaborn *pairplot* for all numeric features.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Dataset containing numeric features and a target column.
+    target_col : str
+        Column used for hue-coloring the scatter-matrix.
+
+    Returns
+    -------
+    None
+        Displays the pairplot.
+    """
+
     sns.pairplot(df, hue=target_col)
     plt.show()
 
 # Draw a correlation heatmap for numeric features
 def draw_heatmap(df):
+    """
+    Plot a correlation heatmap of numeric features.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame with numeric columns.
+
+    Returns
+    -------
+    None
+        Displays an annotated heatmap of Pearson correlations.
+    """
+
     plt.figure(figsize=(10, 8))
     sns.heatmap(df.corr(), annot=True, cmap='crest')
     plt.title("Correlation Heatmap")
@@ -85,6 +155,25 @@ def draw_heatmap(df):
 
 # Plot bar charts for all categorical features with optional normalization and hue
 def plot_all_barcharts(data, hue=None, normalize=False, dimension=(10, 6)):
+    """
+    Draw bar charts for every categorical feature in *data*.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        Source data containing categorical columns.
+    hue : str, optional
+        Second categorical column for stacked/side-by-side bars.
+    normalize : bool, default=False
+        If ``True``, bars represent proportions; otherwise, raw counts.
+    dimension : tuple[int, int], default=(10, 6)
+        Figure size in inches *(width, height)*.
+
+    Returns
+    -------
+    None
+        Displays one bar chart per categorical feature.
+    """
     for column in data.columns:
         if pd.api.types.is_numeric_dtype(data[column]):
             continue
@@ -112,6 +201,26 @@ def plot_all_barcharts(data, hue=None, normalize=False, dimension=(10, 6)):
 
 # Plot heatmaps for categorical feature combinations with optional normalization
 def plot_categorical_heatmaps(df, col1=None, col2=None, normalization=None):
+    """
+    Plot heatmaps for all (or specified) pairs of categorical features.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Dataset containing categorical columns.
+    col1, col2 : str, optional
+        If both are provided, only their cross-tabulation is plotted.
+        Otherwise, heatmaps for every unique column pair are generated.
+    normalization : {'row', 'column', None}, default=None
+        • ``'row'``    → each row is normalized to sum to 1  
+        • ``'column'`` → each column is normalized to sum to 1  
+        • ``None``     → raw counts are shown.
+
+    Returns
+    -------
+    None
+        Displays one heatmap per selected category pair.
+    """
     cat_columns = df.select_dtypes(include=['object', 'category']).columns
     pairs = [(col1, col2)] if col1 and col2 else [(c1, c2) for i, c1 in enumerate(cat_columns) for c2 in cat_columns[i+1:]]
 
@@ -132,6 +241,25 @@ def plot_categorical_heatmaps(df, col1=None, col2=None, normalization=None):
 
 # Analyze each categorical feature against the target with stacked histograms and counts
 def plot_categorical_analysis(df, target_col):
+    """
+    Analyse each categorical feature against the target distribution.
+
+    For every categorical column (excluding *target_col*), the function:
+    1. Plots a stacked histogram (% share per target class).  
+    2. Prints the value counts per target class.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Source data.
+    target_col : str
+        Classification target column.
+
+    Returns
+    -------
+    None
+        Displays plots and prints counts to stdout.
+    """
     categorical_columns = df.select_dtypes(include=['object', 'category']).columns
     categorical_columns = [col for col in categorical_columns if col != target_col]
 
@@ -149,7 +277,25 @@ def plot_categorical_analysis(df, target_col):
         print(value_counts, "\n")
 
 def plot_categorical_distributions(df, target_col, normalize=False, figsize=(15, 10)):
+    """
+    Plot side-by-side or percentage bar charts for all categorical features.
 
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Dataset containing categorical columns and the target column.
+    target_col : str
+        Column used for hue-splitting the bars.
+    normalize : bool, default=False
+        If ``True``, bars show class-wise percentages; otherwise, raw counts.
+    figsize : tuple[int, int], default=(15, 10)
+        Overall figure size for the subplot grid.
+
+    Returns
+    -------
+    None
+        Displays a grid of bar charts; non-existent axes are hidden.
+    """
     categorical_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
 
     if target_col in categorical_cols:

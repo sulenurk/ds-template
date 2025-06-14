@@ -8,7 +8,44 @@ from typing import Dict, List, Optional
 
 # === 1. LEARN ===
 def learn_model(df, target_col, params=None, search=True, cv=5, scoring='recall', random_state=42):
-    """Train Gaussian Naive Bayes (no tree or linear hyperparameters)"""
+    """
+    Train a Gaussian Naive Bayes classifier with optional hyper-parameter tuning.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input dataset that contains feature columns, the target column and a
+        'dataset' indicator column (which is excluded from training).
+    target_col : str
+        Name of the target column to predict.
+    params : dict, optional
+        Hyper-parameters to evaluate or set. If `None`, the classifier is
+        fitted with its default parameters.
+    search : bool, default=True
+        If True and `params` is provided, performs grid search over `params`;
+        otherwise, fits directly with the supplied `params`.
+    cv : int, default=5
+        Number of cross-validation folds used during grid search.
+    scoring : str, default='recall'
+        Scoring metric for model selection when grid search is performed.
+    random_state : int, default=42
+        Kept for a unified API; not used by `GaussianNB`.
+
+    Returns
+    -------
+    dict
+        {
+            'model'        : fitted `GaussianNB` instance,
+            'model_params' : best or fixed parameter set as a dict,
+            'features'     : None  # GaussianNB provides no intrinsic importances
+        }
+
+    Notes
+    -----
+    - Column `'dataset'` is always dropped before training.
+    - If `params` is `None`, the model is trained once with default settings.
+    - Grid search is delegated to `mu.grid_search`.
+    """
     model = GaussianNB()
 
     X = df.drop(columns=[target_col, 'dataset'])
@@ -34,7 +71,34 @@ def learn_model(df, target_col, params=None, search=True, cv=5, scoring='recall'
 
 # === 2. APPLY ===
 def apply_model(df, model_info: Dict, columns: Optional[List[str]] = None) -> pd.DataFrame:
-    """Apply GaussianNB to data and return predictions + probabilities"""
+    """
+    Apply a trained Gaussian NB model to a DataFrame and append predictions.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Data on which predictions are required.
+    model_info : dict
+        Dictionary with the key `'model'` mapped to a fitted `GaussianNB`.
+    columns : list[str], optional
+        Column names to exclude during prediction (e.g., IDs). They are
+        re-attached to the returned DataFrame unchanged.
+
+    Returns
+    -------
+    pd.DataFrame
+        Copy of the input (excluding temporarily dropped columns during
+        inference) with two new columns:
+        - 'predictions'   : predicted class labels
+        - 'probabilities' : probability of the positive class (index 1)
+
+    Notes
+    -----
+    - Existing `'predictions'` or `'probabilities'` columns in `df` are removed
+      before new values are added.
+    - Positive-class probability is extracted as
+      `model.predict_proba(...)[:, 1]`.
+    """
     model = model_info['model']
 
     # Drop specified columns temporarily
@@ -68,7 +132,39 @@ def apply_model(df, model_info: Dict, columns: Optional[List[str]] = None) -> pd
 
 # === 3. EVALUATE ===
 def evaluate_model(df: pd.DataFrame, target_col: str):
-    """Evaluate predictions using classification and probability metrics"""
+    """
+    Evaluate classification results and plot diagnostic graphics.
+
+    Prints a classification report, shows a confusion matrix, and—if class
+    probabilities are present—plots additional probability-based metrics
+    (ROC-like curves, lift, cumulative gains).
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing:
+        - true labels in `target_col`
+        - 'predictions' column (required)
+        - 'probabilities' column (optional) for probability-based metrics.
+    target_col : str
+        Name of the column with true class labels.
+
+    Returns
+    -------
+    None
+        Outputs are printed to stdout and plots are displayed.
+
+    Raises
+    ------
+    KeyError
+        If `'predictions'` is missing from `df`.
+
+    Notes
+    -----
+    - Utility plotting functions (`mu.plot_confusion_matrix`, etc.) must be
+      available in the current namespace.
+    - Probability-based plots are skipped if `'probabilities'` is absent.
+    """
     y_true = df[target_col]
     y_pred = df['predictions']
     pred_proba = df['probabilities']

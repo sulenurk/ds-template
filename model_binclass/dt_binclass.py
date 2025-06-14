@@ -8,8 +8,32 @@ from typing import Dict, List, Optional
 
 # === 1. LEARN ===
 def learn_model(df, target_col, params=None, search=True, cv=5, scoring='recall', random_state=42):
-    """Train Decision Tree with optional hyperparameter tuning"""
- 
+    """
+    Train a Decision Tree model with optional hyperparameter tuning.
+
+    This function trains a `DecisionTreeClassifier` on the provided DataFrame.
+    It supports manual parameter input or automatic grid search for hyperparameter optimization.
+
+    Parameters:
+        df (pd.DataFrame): Input dataset containing features, target column, and a 'dataset' indicator column.
+        target_col (str): Name of the target column to be predicted.
+        params (dict, optional): Dictionary of hyperparameters to set for the model. If None, default grid search is used.
+        search (bool, default=True): If True and `params` is provided, performs grid search over the given `params`. 
+                                     If False, trains directly with provided `params`.
+        cv (int, default=5): Number of cross-validation folds used in grid search.
+        scoring (str, default='recall'): Scoring metric used for model selection during hyperparameter tuning.
+        random_state (int, default=42): Random seed for reproducibility.
+
+    Returns:
+        dict: A dictionary containing:
+            - 'model' (DecisionTreeClassifier): The trained decision tree model.
+            - 'model_params' (dict): The best parameters used during training.
+
+    Notes:
+        - The column named 'dataset' is dropped from `df` before training.
+        - If `params` is not provided, a predefined hyperparameter grid is used for tuning.
+    
+    """ 
     model = DecisionTreeClassifier(random_state=random_state)
 
     X = df.drop(columns=[target_col, 'dataset'])
@@ -38,7 +62,46 @@ def learn_model(df, target_col, params=None, search=True, cv=5, scoring='recall'
 
 # === 2. APPLY ===
 def apply_model(df, model_info: Dict, columns: Optional[List[str]] = None) -> pd.DataFrame:
-    """Apply Decision Tree model to data and return predictions + probabilities"""
+    """
+    Apply a trained Decision Tree model to a DataFrame and append predictions.
+
+    The function:
+    1. Drops the specified `columns` (if any) **only** for inference,  
+       but re-inserts them into the output to preserve the original schema.  
+    2. Removes existing `"predictions"` or `"probabilities"` columns to avoid
+       accidental overwriting conflicts.  
+    3. Generates class predictions and positive-class probabilities, and
+       returns the DataFrame with two new columns:  
+       - **predictions**  (int or str)  
+       - **probabilities** (float in \[0, 1\])
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input data on which predictions will be made.
+    model_info : Dict
+        Dictionary returned by `learn_model`; must contain at least the key
+        `'model'` mapped to a fitted `DecisionTreeClassifier`.
+    columns : list[str], optional
+        Column names to exclude from the model’s feature set during inference.
+        These columns are concatenated back to the result unchanged.
+
+    Returns
+    -------
+    pd.DataFrame
+        A copy of the input (excluding any temporarily dropped columns during
+        prediction) with two additional columns:
+        `'predictions'` and `'probabilities'`.
+
+    Notes
+    -----
+    - The model is assumed to have been trained on
+      `df.drop(columns=columns)` (plus any other preprocessing).
+    - If `'predictions'` or `'probabilities'` already exist in `df`, they are
+      removed before new values are added.
+    - The positive-class probability is extracted as `model.predict_proba(... )[:, 1]`.
+
+    """
     model = model_info['model']
 
     # Drop specified columns temporarily
@@ -70,7 +133,38 @@ def apply_model(df, model_info: Dict, columns: Optional[List[str]] = None) -> pd
 
 # === 3. EVALUATE ===
 def evaluate_model(df: pd.DataFrame, target_col: str):
-    """Evaluate classification predictions with report and confusion matrix from a single DataFrame."""
+    """
+    Evaluate classification performance using a classification report and confusion matrix.
+
+    This function takes a DataFrame containing true labels and model predictions,
+    and prints a classification report (precision, recall, f1-score, accuracy)
+    along with a plotted confusion matrix.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame that must include:
+        - the true target column (`target_col`)
+        - a 'predictions' column containing predicted labels.
+
+    target_col : str
+        Name of the column in `df` that holds the true class labels.
+
+    Returns
+    -------
+    None
+        This function prints results to stdout and displays a confusion matrix plot.
+
+    Raises
+    ------
+    KeyError
+        If 'predictions' column is not found in `df`.
+
+    Notes
+    -----
+    - This function assumes classification (not regression).
+    - Requires `mu.plot_confusion_matrix(...)` to be a valid plotting function in scope.
+    """
 
     y_true = df[target_col]
     y_pred = df['predictions']

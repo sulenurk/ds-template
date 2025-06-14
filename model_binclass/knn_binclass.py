@@ -8,7 +8,43 @@ from typing import Dict, List, Optional
 
 # === 1. LEARN ===
 def learn_model(df, target_col, params=None, search=True, cv=5, scoring='recall', random_state=42):
-    """Train K-Nearest Neighbors with optional hyperparameter tuning"""
+    """
+    Train a K-Nearest Neighbors classifier with optional hyper-parameter tuning.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input dataset containing feature columns, the target column, and a
+        'dataset' indicator column that is excluded from training.
+    target_col : str
+        Name of the target column to be predicted.
+    params : dict, optional
+        Hyper-parameters to evaluate or set. If None, a predefined parameter
+        grid is used for tuning.
+    search : bool, default=True
+        If True and `params` is provided, performs grid search using `params`.
+        If False, fits the model directly with the provided `params`.
+    cv : int, default=5
+        Number of cross-validation folds used during grid search.
+    scoring : str, default='recall'
+        Scoring metric for model selection in grid search.
+    random_state : int, default=42
+        Included for API consistency; KNN is deterministic and ignores it.
+
+    Returns
+    -------
+    dict
+        {
+            'model'        : fitted `KNeighborsClassifier`,
+            'model_params' : best or fixed parameter set as a dict
+        }
+
+    Notes
+    -----
+    - Column 'dataset' is always dropped before training.
+    - Grid search is delegated to `mu.grid_search`.
+    """
+
     model = KNeighborsClassifier()
 
     X = df.drop(columns=[target_col, 'dataset'])
@@ -36,7 +72,34 @@ def learn_model(df, target_col, params=None, search=True, cv=5, scoring='recall'
 
 # === 2. APPLY ===
 def apply_model(df, model_info: Dict, columns: Optional[List[str]] = None) -> pd.DataFrame:
-    """Apply KNN model to data and return predictions + probabilities (if available)"""
+    """
+    Apply a trained KNN model to a DataFrame and append predictions.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Data on which predictions are required.
+    model_info : dict
+        Dictionary whose key 'model' holds a fitted `KNeighborsClassifier`.
+    columns : list[str], optional
+        Column names to exclude during prediction (e.g., IDs). They are
+        re-attached to the returned DataFrame unchanged.
+
+    Returns
+    -------
+    pd.DataFrame
+        Copy of the input data (excluding any temporarily dropped columns
+        during inference) with two new columns:
+        - 'predictions'   : predicted class labels
+        - 'probabilities' : probability of the positive class (index 1)
+
+    Notes
+    -----
+    - Existing 'predictions' or 'probabilities' columns in `df` are removed
+      before new values are added.
+    - If `predict_proba` is unavailable (rare for KNN in scikit-learn),
+      probability-based columns will be omitted.
+    """
     model = model_info['model']
 
     # Drop specified columns temporarily
@@ -70,7 +133,39 @@ def apply_model(df, model_info: Dict, columns: Optional[List[str]] = None) -> pd
 
 # === 3. EVALUATE ===
 def evaluate_model(df: pd.DataFrame, target_col: str):
-    """Evaluate predictions with classification metrics and probability-based plots"""
+    """
+    Evaluate classification results and display diagnostic plots.
+
+    Prints a classification report, shows a confusion matrix, and—if class
+    probabilities are present—plots additional probability-based diagnostics
+    (ROC-like curves, lift, cumulative gains).
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing:
+        - true labels in `target_col`
+        - a 'predictions' column (required)
+        - a 'probabilities' column (optional) for probability-based plots
+    target_col : str
+        Name of the column holding true class labels.
+
+    Returns
+    -------
+    None
+        Outputs are printed to stdout and plots are displayed.
+
+    Raises
+    ------
+    KeyError
+        If 'predictions' column is missing from `df`.
+
+    Notes
+    -----
+    - Utility plotting functions (`mu.plot_confusion_matrix`, etc.) must be
+      available in the current namespace.
+    - Probability-based plots are skipped if 'probabilities' is absent.
+    """
     y_true = df[target_col]
     y_pred = df['predictions']
     pred_proba = df['probabilities'] if 'probabilities' in df else None
