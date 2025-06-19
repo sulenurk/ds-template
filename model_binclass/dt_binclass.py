@@ -134,42 +134,46 @@ def apply_model(df, model_info: Dict, columns: Optional[List[str]] = None) -> pd
 # === 3. EVALUATE ===
 def evaluate_model(df: pd.DataFrame, target_col: str):
     """
-    Evaluate classification performance using a classification report and confusion matrix.
-
-    This function takes a DataFrame containing true labels and model predictions,
-    and prints a classification report (precision, recall, f1-score, accuracy)
-    along with a plotted confusion matrix.
+    Evaluate classification results separately for training and test datasets.
 
     Parameters
     ----------
     df : pd.DataFrame
-        DataFrame that must include:
-        - the true target column (`target_col`)
-        - a 'predictions' column containing predicted labels.
-
+        DataFrame containing:
+        - true labels in *target_col*
+        - a 'predictions' column (required)
+        - a 'probabilities' column (optional) for probability-based plots
+        - a 'dataset' column with values 1 for training and 0 for test
     target_col : str
-        Name of the column in `df` that holds the true class labels.
+        Name of the column holding true class labels.
 
     Returns
     -------
     None
-        This function prints results to stdout and displays a confusion matrix plot.
-
-    Raises
-    ------
-    KeyError
-        If 'predictions' column is not found in `df`.
-
-    Notes
-    -----
-    - This function assumes classification (not regression).
-    - Requires `mu.plot_confusion_matrix(...)` to be a valid plotting function in scope.
     """
+    train_set = df[df['dataset'] == 1]
+    test_set = df[df['dataset'] == 0]
 
-    y_true = df[target_col]
-    y_pred = df['predictions']
-    
-    print("═══ Classification Report ═══")
+    #Train Set Evaluation
+    if train_set.empty:
+        print("No data found for the training set.")
+        return
+
+    y_true = train_set[target_col]
+    y_pred = train_set['predictions']
+
+    print("\n═══ Train Set Classification Report ═══")
     print(classification_report(y_true, y_pred))
+    mu.plot_confusion_matrix(y_true, y_pred)
     
+    #Test Set Evaluation
+    if test_set.empty:
+        print("No data found for the test set.")
+        return
+
+    y_true = test_set[target_col]
+    y_pred = test_set['predictions']
+
+    print("\n═══ Test Set Classification Report ═══")
+    print(classification_report(y_true, y_pred))
     mu.plot_confusion_matrix(y_true, y_pred)

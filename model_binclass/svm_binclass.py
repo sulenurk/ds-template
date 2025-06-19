@@ -133,43 +133,36 @@ def apply_model(df, model_info: Dict, columns: Optional[List[str]] = None) -> pd
 # === 3. EVALUATE ===
 def evaluate_model(df: pd.DataFrame, target_col: str):
     """
-    Evaluate classification results and display diagnostic plots.
-
-    Prints a classification report, shows a confusion matrix, and—if class
-    probabilities are present—plots additional probability-based diagnostics
-    (ROC-like metrics, lift, cumulative gains).
+    Evaluate classification results separately for training and test datasets.
 
     Parameters
     ----------
     df : pd.DataFrame
         DataFrame containing:
         - true labels in *target_col*
-        - a `'predictions'` column (required)
-        - a `'probabilities'` column (optional) for probability-based plots
+        - a 'predictions' column (required)
+        - a 'probabilities' column (optional) for probability-based plots
+        - a 'dataset' column with values 1 for training and 0 for test
     target_col : str
         Name of the column holding true class labels.
 
     Returns
     -------
     None
-        Outputs are printed to stdout and plots are displayed.
-
-    Raises
-    ------
-    KeyError
-        If `'predictions'` column is missing from *df*.
-
-    Notes
-    -----
-    - Utility plotting functions (``mu.plot_confusion_matrix``, etc.) must be
-      available in the current namespace.
-    - Probability-based plots are skipped if `'probabilities'` is absent.
     """
-    y_true = df[target_col]
-    y_pred = df['predictions']
-    pred_proba = df['probabilities']
+    train_set = df[df['dataset'] == 1]
+    test_set = df[df['dataset'] == 0]
 
-    print("═══ Classification Report ═══")
+    #Train Set Evaluation
+    if train_set.empty:
+        print("No data found for the training set.")
+        return
+
+    y_true = train_set[target_col]
+    y_pred = train_set['predictions']
+    pred_proba = train_set['probabilities'] if 'probabilities' in train_set.columns else None
+
+    print("\n═══ Train Set Classification Report ═══")
     print(classification_report(y_true, y_pred))
     mu.plot_confusion_matrix(y_true, y_pred)
 
@@ -177,5 +170,27 @@ def evaluate_model(df: pd.DataFrame, target_col: str):
         mu.plot_probability_metrics(y_true, pred_proba)
         mu.plot_lift_curve(y_true, pred_proba)
         mu.plot_cumulative_gains(y_true, pred_proba)
+        mu.plot_calibration_curve(y_true, pred_proba)
     else:
-        print("Note: Probability-based plots skipped (probabilities not available).")
+        print("Note: Train set probability-based plots skipped (no probabilities found).")
+
+    #Test Set Evaluation
+    if test_set.empty:
+        print("No data found for the test set.")
+        return
+
+    y_true = test_set[target_col]
+    y_pred = test_set['predictions']
+    pred_proba = test_set['probabilities'] if 'probabilities' in test_set.columns else None
+
+    print("\n═══ Test Set Classification Report ═══")
+    print(classification_report(y_true, y_pred))
+    mu.plot_confusion_matrix(y_true, y_pred)
+
+    if pred_proba is not None:
+        mu.plot_probability_metrics(y_true, pred_proba)
+        mu.plot_lift_curve(y_true, pred_proba)
+        mu.plot_cumulative_gains(y_true, pred_proba)
+        mu.plot_calibration_curve(y_true, pred_proba)
+    else:
+        print("Note: Test set probability-based plots skipped (no probabilities found).")    
