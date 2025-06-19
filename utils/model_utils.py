@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.metrics import (confusion_matrix, ConfusionMatrixDisplay, 
+from sklearn.metrics import (ConfusionMatrixDisplay, 
                             roc_auc_score, average_precision_score,
                             RocCurveDisplay, PrecisionRecallDisplay)
 from sklearn.model_selection import cross_val_score, StratifiedKFold , GridSearchCV
@@ -97,27 +97,10 @@ def feature_importance(model, X):
 
   return importance_df
 
-def plot_confusion_matrix(y_true, y_pred):
-    """
-    Display a confusion matrix heatmap.
-
-    Parameters
-    ----------
-    y_true : array-like, shape (n_samples,)
-        Ground-truth labels.
-    y_pred : array-like, shape (n_samples,)
-        Predicted labels.
-
-    Returns
-    -------
-    None
-        Shows the figure with a blue-scale confusion matrix.
-    """
-    cm = confusion_matrix(y_true, y_pred)
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm)
-    title = 'Confusion Matrix'
-    disp.plot(cmap='Blues')
-    plt.title(title)
+def plot_confusion_matrix(y_true, y_pred, title=None):
+    disp = ConfusionMatrixDisplay.from_predictions(y_true, y_pred)
+    if title:
+        plt.title(title)
     plt.show()
 
 def plot_probability_metrics(y_true, probabilities):

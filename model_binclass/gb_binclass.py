@@ -106,43 +106,64 @@ def apply_model(df, model_info: Dict, columns: Optional[List[str]] = None) -> pd
 # === 3. EVALUATE ===
 def evaluate_model(df: pd.DataFrame, target_col: str):
     """
-    Apply a trained Gradient Boosting model to a DataFrame and append predictions.
-
-    This function uses a fitted `GradientBoostingClassifier` to generate predictions
-    and class probabilities from the given DataFrame. Optionally, specified columns 
-    can be excluded during prediction but retained in the final output.
+    Evaluate classification results separately for training and test datasets.
 
     Parameters
     ----------
     df : pd.DataFrame
-        Input data to apply the model on. Must include the same features used during training.
-    model_info : dict
-        A dictionary containing at least the key 'model' mapped to a trained GradientBoostingClassifier.
-    columns : list of str, optional
-        Columns to exclude during prediction (e.g., IDs or non-feature columns).
-        These columns are added back to the returned DataFrame after prediction.
+        DataFrame containing:
+        - true labels in *target_col*
+        - a 'predictions' column (required)
+        - a 'probabilities' column (optional) for probability-based plots
+        - a 'dataset' column with values 1 for training and 0 for test
+    target_col : str
+        Name of the column holding true class labels.
 
     Returns
     -------
-    pd.DataFrame
-        A copy of the input data (excluding dropped columns during prediction),
-        with two added columns:
-        - 'predictions': predicted class labels
-        - 'probabilities': predicted probabilities for the positive class (class 1)
-
-    Notes
-    -----
-    - Existing 'predictions' or 'probabilities' columns in `df` will be removed before generating new ones.
-    - The positive class is assumed to be at index 1 in `predict_proba`.
+    None
     """
-    y_true = df[target_col]
-    y_pred = df['predictions']
-    pred_proba = df['probabilities']
+    train_set = df[df['dataset'] == 1]
+    test_set = df[df['dataset'] == 0]
 
-    print("═══ Classification Report ═══")
+    #Train Set Evaluation
+    if train_set.empty:
+        print("No data found for the training set.")
+        return
+
+    y_true = train_set[target_col]
+    y_pred = train_set['predictions']
+    pred_proba = train_set['probabilities'] if 'probabilities' in train_set.columns else None
+
+    print("\n═══ Train Set Classification Report ═══")
     print(classification_report(y_true, y_pred))
-
     mu.plot_confusion_matrix(y_true, y_pred)
-    mu.plot_probability_metrics(y_true, pred_proba)
-    mu.plot_lift_curve(y_true, pred_proba)
-    mu.plot_cumulative_gains(y_true, pred_proba)
+
+    if pred_proba is not None:
+        mu.plot_probability_metrics(y_true, pred_proba)
+        mu.plot_lift_curve(y_true, pred_proba)
+        mu.plot_cumulative_gains(y_true, pred_proba)
+        mu.plot_calibration_curve(y_true, pred_proba)
+    else:
+        print("Note: Train set probability-based plots skipped (no probabilities found).")
+
+    #Test Set Evaluation
+    if test_set.empty:
+        print("No data found for the test set.")
+        return
+
+    y_true = test_set[target_col]
+    y_pred = test_set['predictions']
+    pred_proba = test_set['probabilities'] if 'probabilities' in test_set.columns else None
+
+    print("\n═══ Test Set Classification Report ═══")
+    print(classification_report(y_true, y_pred))
+    mu.plot_confusion_matrix(y_true, y_pred)
+
+    if pred_proba is not None:
+        mu.plot_probability_metrics(y_true, pred_proba)
+        mu.plot_lift_curve(y_true, pred_proba)
+        mu.plot_cumulative_gains(y_true, pred_proba)
+        mu.plot_calibration_curve(y_true, pred_proba)
+    else:
+        print("Note: Test set probability-based plots skipped (no probabilities found).")    
